@@ -4,6 +4,16 @@ A modular dataloader for patch-based whole-body lesion detection. The package is
 split into small components so the dataset, sampler and loader can be reused in
 other projects or adapted to different modalities.
 
+This repository accompanies the DEMI 2025 workshop paper:
+
+**Instance‑Balanced Patch Sampling for Whole‑Body Lesion Segmentation**<br>
+Joris Wuts, Jakub Ceranka, Jef Vandemeulebroucke, Frédéric Lecouvet<br>
+_Open-access version and citation details will be added after the MICCAI 2025 conference._
+
+Whole-body scans often contain many tiny lesions that make up less than 0.01% of the image volume.
+Conventional positive–negative patch sampling struggles in this setting, over-representing background and large lesions while missing small targets.
+The instance-balanced strategy samples patches per lesion instance, improving CPU data-loading efficiency, training speed and segmentation accuracy.
+
 ## Package structure
 
 ``ib_sampling`` exposes a few key utilities:
@@ -101,4 +111,11 @@ respectively.
 
 This design keeps GPU utilisation high by avoiding repeated disk reads while
 still supporting large background pools.
+
+## Authors
+
+- Joris Wuts
+- Jakub Ceranka
+- Jef Vandemeulebroucke
+- Frédéric Lecouvet
 
