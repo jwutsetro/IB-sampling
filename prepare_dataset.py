@@ -165,8 +165,10 @@ def process_case(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare dataset into patches")
-    parser.add_argument("input_dir", help="Directory with raw subject folders")
-    parser.add_argument("output_dir", help="Directory to store extracted patches")
+    parser.add_argument("train_dir", help="Directory with raw training subject folders")
+    parser.add_argument("train_output", help="Directory to store training patches")
+    parser.add_argument("--val-dir", default=None, help="Optional directory with raw validation subjects")
+    parser.add_argument("--val-output", default=None, help="Directory to store validation patches")
     parser.add_argument("--patch-size", type=int, nargs=3, default=(128, 128, 128))
     parser.add_argument(
         "--stride",
@@ -190,14 +192,24 @@ def main() -> None:
     else:
         stride = tuple(args.stride)
 
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    train_dir = Path(args.train_dir)
+    train_out = Path(args.train_output)
+    train_out.mkdir(parents=True, exist_ok=True)
 
     modalities_filter = args.modalities
-    for case in sorted(input_dir.iterdir()):
+    for case in sorted(train_dir.iterdir()):
         if case.is_dir():
-            process_case(case, output_dir, patch_size, stride, modalities_filter)
+            process_case(case, train_out, patch_size, stride, modalities_filter)
+
+    if args.val_dir:
+        if args.val_output is None:
+            raise ValueError("--val-output must be provided when --val-dir is set")
+        val_dir = Path(args.val_dir)
+        val_out = Path(args.val_output)
+        val_out.mkdir(parents=True, exist_ok=True)
+        for case in sorted(val_dir.iterdir()):
+            if case.is_dir():
+                process_case(case, val_out, patch_size, stride, modalities_filter)
 
 
 if __name__ == "__main__":
