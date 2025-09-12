@@ -181,9 +181,17 @@ class MedicalPatchDataset(Dataset):
         return sample
 
     def _apply_transforms(self, sample: Dict[str, np.ndarray], sample_type: str):
-        if sample_type == "positive":
-            crop = RandSpatialCropd(keys=["image", "label"], roi_size=self.patch_size, random_size=False)
-            sample = crop(sample)
+        """Apply cropping and other transforms to a sample.
+
+        All samples are cropped to ``self.patch_size`` to ensure a consistent
+        input size for the network. This allows the training patches to be
+        larger than the downstream size while still yielding fixed-size inputs
+        after the random crop. Additional user-provided transforms are applied
+        afterwards.
+        """
+
+        crop = RandSpatialCropd(keys=["image", "label"], roi_size=self.patch_size, random_size=False)
+        sample = crop(sample)
 
         if self.transform:
             sample = self.transform(sample)

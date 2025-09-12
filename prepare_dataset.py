@@ -3,13 +3,15 @@
 For each subject folder containing multiple modalities (e.g., ``T1.nii.gz`` and
 ``b1000.nii.gz``) and a ground-truth mask ``GT.nii.gz``, this script extracts:
 
-* **Positive patches**: one patch per connected component in the mask. Each
-  patch uses the minimal bounding box around the lesion, padded by 10 voxels and
-  enlarged to at least ``128^3`` (or a user-specified size).
-* **Negative patches**: sliding window patches of ``128^3`` with 50% overlap over
-  the volume, skipping any regions that intersect lesions.
+* **Training patches** – for each connected component, a patch is cropped around
+  the lesion's bounding box with a 10‑voxel margin. The patch size is at least
+  133% of the downstream model's patch size (default ``96`` → ``128``) but grows
+  to encompass larger lesions.
+* **Validation patches** – cropped at exactly the downstream patch size.
+* **Negative patches** – sliding windows covering the volume with 50% overlap
+  using the same patch size as their respective split.
 
-All modalities are normalized using the 1st and 99th percentiles before patch
+All modalities are normalised using the 1st and 99th percentiles before patch
 extraction. Patches are written to ``lesion_patches`` and ``background_patches``
 subdirectories of the output folder using the naming convention expected by the
 ``MedicalPatchDataset`` loader.
@@ -19,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from math import ceil
 
 import nibabel as nib
 import numpy as np
@@ -169,13 +172,13 @@ def main() -> None:
     parser.add_argument("train_output", help="Directory to store training patches")
     parser.add_argument("--val-dir", default=None, help="Optional directory with raw validation subjects")
     parser.add_argument("--val-output", default=None, help="Directory to store validation patches")
-    parser.add_argument("--patch-size", type=int, nargs=3, default=(128, 128, 128))
     parser.add_argument(
-        "--stride",
+        "--downstream-patch-size",
         type=int,
         nargs=3,
-        default=None,
-        help="Stride for negative patch extraction (defaults to half patch size)",
+        default=(96, 96, 96),
+        help="Patch size expected by the downstream model. Training patches will"
+        " be at least 133%% of this size.",
     )
     parser.add_argument(
         "--modalities",
@@ -186,11 +189,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    patch_size = tuple(args.patch_size)
-    if args.stride is None:
-        stride = tuple(s // 2 for s in patch_size)
-    else:
-        stride = tuple(args.stride)
+    downstream_patch = tuple(args.downstream_patch_size)
+    train_patch = tuple(int(ceil(s * 4 / 3)) for s in downstream_patch)
+    train_stride = tuple(s // 2 for s in train_patch)
+    val_stride = tuple(s // 2 for s in downstream_patch)
 
     train_dir = Path(args.train_dir)
     train_out = Path(args.train_output)
@@ -199,7 +201,7 @@ def main() -> None:
     modalities_filter = args.modalities
     for case in sorted(train_dir.iterdir()):
         if case.is_dir():
-            process_case(case, train_out, patch_size, stride, modalities_filter)
+            process_case(case, train_out, train_patch, train_stride, modalities_filter)
 
     if args.val_dir:
         if args.val_output is None:
@@ -209,7 +211,7 @@ def main() -> None:
         val_out.mkdir(parents=True, exist_ok=True)
         for case in sorted(val_dir.iterdir()):
             if case.is_dir():
-                process_case(case, val_out, patch_size, stride, modalities_filter)
+                process_case(case, val_out, downstream_patch, val_stride, modalities_filter)
 
 
 if __name__ == "__main__":
