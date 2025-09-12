@@ -19,12 +19,12 @@ from monai.transforms import (
 
 from .dataset import MedicalPatchDataset
 from .sampler import BalancedBatchSampler
-from .utils import train_validate_dicts
 
 
 def get_loader(args):
     """Create training and validation data loaders."""
-    root_dir = args.data_dir
+    train_dir = args.train_dir
+    val_dir = getattr(args, "val_dir", None)
     patch_size = (args.roi_x, args.roi_y, args.roi_z)
     batch_size = args.batch_size
     ratio = args.ratio
@@ -55,15 +55,13 @@ def get_loader(args):
         ]
     )
 
-    train_patient_ids, val_patient_ids = train_validate_dicts(root_dir, args)
-
     train_dataset = MedicalPatchDataset(
-        root_dir,
+        train_dir,
         patch_size,
         transform=train_transforms,
         rank=args.rank,
         world_size=args.world_size,
-        patient_ids=train_patient_ids,
+        patient_ids=None,
         is_training=True,
         modalities=modalities,
     )
@@ -94,24 +92,26 @@ def get_loader(args):
         collate_fn=list_data_collate,
     )
 
-    val_dataset = MedicalPatchDataset(
-        root_dir,
-        patch_size,
-        transform=val_transforms,
-        rank=args.rank,
-        world_size=args.world_size,
-        patient_ids=val_patient_ids,
-        is_training=False,
-        modalities=modalities,
-    )
+    val_loader = None
+    if val_dir:
+        val_dataset = MedicalPatchDataset(
+            val_dir,
+            patch_size,
+            transform=val_transforms,
+            rank=args.rank,
+            world_size=args.world_size,
+            patient_ids=None,
+            is_training=False,
+            modalities=modalities,
+        )
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=list_data_collate,
-    )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=True,
+            collate_fn=list_data_collate,
+        )
 
     return train_loader, val_loader

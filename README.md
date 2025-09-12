@@ -22,10 +22,8 @@ The instance-balanced strategy samples patches per lesion instance, improving CP
   frequently used patches in memory.
 - `BalancedBatchSampler` – draws a balanced mix of positive and negative
   patches for each epoch.
-- `get_loader` – convenience helper that builds training and validation
-  dataloaders.
-- `train_validate_dicts` – splits patient IDs into train/validation folds with
-  a configurable number of splits via ``max_splits``.
+- `get_loader` – convenience helper that builds training and optional
+  validation dataloaders.
 
 The repository also provides a template ``prepare_dataset.py`` script that
 converts raw volumes into patch datasets compatible with the dataloader.
@@ -52,11 +50,13 @@ a ground-truth mask named ``GT.nii.gz``.
 
 ## Preparing patches
 
-Use the provided script to extract positive and negative patches:
+Use the provided script to extract positive and negative patches. Supply the
+directory with training volumes and, optionally, a validation directory:
 
 ```
-python prepare_dataset.py RAW_DIR OUTPUT_DIR --patch-size 128 128 128 \
-       --modalities T1 b1000
+python prepare_dataset.py TRAIN_RAW_DIR TRAIN_OUT_DIR --patch-size 128 128 128 \
+       --modalities T1 b1000 \
+       --val-dir VAL_RAW_DIR --val-output VAL_OUT_DIR
 ```
 
 The script performs 1–99 percentile normalisation on every modality, crops
@@ -78,11 +78,11 @@ from argparse import Namespace
 from ib_sampling.loader import get_loader
 
 args = Namespace(
-    data_dir="OUTPUT_DIR",
+    train_dir="TRAIN_OUT_DIR",
+    val_dir="VAL_OUT_DIR",  # optional
     roi_x=128, roi_y=128, roi_z=128,
     batch_size=4,
     ratio=1.0,                 # negative:positive ratio
-    split=1, max_splits=5,
     seed=0, rank=0, world_size=1,
     num_workers=4, distributed=False,
     modalities=["T1", "b1000"],
