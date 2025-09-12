@@ -30,23 +30,27 @@ converts raw volumes into patch datasets compatible with the dataloader.
 
 ## Raw data layout
 
-Before running the preparation script, the raw data should be organised with one
-directory per acquisition:
+Before running the preparation script, organise the raw data into separate
+``train`` and ``val`` directories. Each acquisition lives in its own folder:
 
 ```
 raw_dataset/
-├── Patient01_a/
-│   ├── T1.nii.gz
-│   ├── b1000.nii.gz
-│   └── GT.nii.gz
-├── Patient01_b/
-│   └── ...
-└── Patient02_a/
-    └── ...
+├── train/
+│   ├── Patient01/
+│   │   ├── T1.nii.gz
+│   │   ├── b1000.nii.gz
+│   │   └── GT.nii.gz
+│   └── Patient02/
+│       └── ...
+└── val/
+    ├── Patient03/
+    │   └── ...
+    └── Patient04/
+        └── ...
 ```
 
-Each folder contains one NIfTI volume per modality (any names are accepted) and
-a ground-truth mask named ``GT.nii.gz``.
+Each case folder contains one NIfTI volume per modality (any names are accepted)
+and a ground‑truth mask named ``GT.nii.gz``.
 
 ## Preparing patches
 
@@ -54,15 +58,17 @@ Use the provided script to extract positive and negative patches. Supply the
 directory with training volumes and, optionally, a validation directory:
 
 ```
-python prepare_dataset.py TRAIN_RAW_DIR TRAIN_OUT_DIR --patch-size 128 128 128 \
+python prepare_dataset.py raw_dataset/train TRAIN_OUT_DIR --downstream-patch-size 96 96 96 \
        --modalities T1 b1000 \
-       --val-dir VAL_RAW_DIR --val-output VAL_OUT_DIR
+       --val-dir raw_dataset/val --val-output VAL_OUT_DIR
 ```
 
-The script performs 1–99 percentile normalisation on every modality, crops
-positive patches around each connected component with a 10‑voxel margin and a
-minimum size of ``128³``, and extracts background patches with a sliding window
-of the same size and 50 % overlap. Patches are written to
+The script performs 1–99 percentile normalisation on every modality. Training
+patches are cropped around each connected component with a 10‑voxel margin and
+are at least 133 % of the downstream size (``96³`` → ``128³`` by default). Larger
+lesions expand the patch further. Validation patches are extracted at exactly
+the downstream size. Background patches are generated with a sliding window of
+the corresponding patch size and 50 % overlap. Patches are written to
 ``OUTPUT_DIR/lesion_patches`` and ``OUTPUT_DIR/background_patches`` using the
 following convention:
 
@@ -80,7 +86,7 @@ from ib_sampling.loader import get_loader
 args = Namespace(
     train_dir="TRAIN_OUT_DIR",
     val_dir="VAL_OUT_DIR",  # optional
-    roi_x=128, roi_y=128, roi_z=128,
+    roi_x=96, roi_y=96, roi_z=96,
     batch_size=4,
     ratio=1.0,                 # negative:positive ratio
     seed=0, rank=0, world_size=1,
